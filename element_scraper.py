@@ -125,6 +125,9 @@ def scrape_images(driver = webdriver.Chrome(),
                             (element['x'] < bounds['x'][1])) &\
                         ((element ['y'] > bounds['y'][0])|\
                          (element ['y'] < bounds['y'][1]))]
+           
+            #Remove duplicates from elements list
+            elements = list(set(elements))
 
             #Save screenshot of browser
             driver.save_screenshot(raw_dir+'/scraped_'+str(i).zfill(6)+'.png')
