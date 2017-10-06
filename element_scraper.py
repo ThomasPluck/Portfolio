@@ -93,9 +93,15 @@ def scrape_images(driver = webdriver.Chrome(),
             sleep(5)
 
             #Find and click a random search result
-            results = driver.find_elements_by_tag_name('h3')
-            choice(results).click()
-            sleep(3)
+            #Exception included to handle python selenium dodginess
+            try:
+                results = driver.find_elements_by_xpath(".//*[@id='rso']//div//h3/a")
+                choice(results).click()
+                sleep(3)
+            except:
+                search.send_keys(len(rand_word)*'\b')
+                sleep(1)
+                continue
 
             #Find all hyperlinks and inputs
             elements = []
@@ -111,7 +117,7 @@ def scrape_images(driver = webdriver.Chrome(),
             #Select only elements visible in screenshot
             #Set bounds
             bounds = {'x':(crop_size[0]//2,window_size['width'] - crop_size[0]//2),
-                      'y':(crop_size[1]//2,window_size['height'] - crop_size[1]//2)}
+                      'y':(crop_size[1]//2,window_size['height'] - 2*crop_size[1])}
 
             #Select only unique locations
             names = elements
@@ -127,9 +133,9 @@ def scrape_images(driver = webdriver.Chrome(),
             #Select only locations in bounds
             elements = [(element,name) for element,name in elements \
                         if ((element['x'] > bounds['x'][0])&\
-                            (element['x'] < bounds['x'][1])) &\
-                        ((element ['y'] > bounds['y'][0])&\
-                         (element ['y'] < bounds['y'][1]))]
+                            (element['x'] < bounds['x'][1])&\
+                            (element ['y'] > bounds['y'][0])&\
+                            (element ['y'] < bounds['y'][1]))]
 
             #Save screenshot of browser
             driver.save_screenshot(raw_dir+'/scraped_'+str(i).zfill(6)+'.png')
@@ -138,8 +144,7 @@ def scrape_images(driver = webdriver.Chrome(),
 
             #Iterate over our element locations and crop images 
             for element,name in elements:
-                print(element)
-                img = Image.open('scraped/raw/scraped_'+str(i).zfill(6)+'.png')
+                img = Image.open(raw_dir+'/scraped_'+str(i).zfill(6)+'.png')
                 
                 crop = img.crop((element['x']-crop_size[0]//2,
                                  element['y']-crop_size[1]//2,
@@ -158,6 +163,7 @@ def scrape_images(driver = webdriver.Chrome(),
             driver.back()
             search = driver.find_element_by_name('q')
             search.send_keys(len(rand_word)*'\b')
+            sleep(1)
                       
         except KeyboardInterrupt:
             #Some final output about images saved and their space in memory
