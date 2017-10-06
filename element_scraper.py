@@ -15,7 +15,6 @@ from random import choice
 
 # PIL's Image object
 from PIL import Image
-import os
 
 """
 We're going to set up a selenium chrome webdriver and
@@ -28,26 +27,17 @@ of all the visible hyperlink and input elements
 Both the screenshot and cropped images will be save
 """
 
-def exitscript(i,j,raw_dir,crop_dir):
+def exitscript(i,j):
     """
     Quick script that prints images found and memory used on exit
 
     :i: int of raw images created
     
     :j: int of cropped images created
-    
-    :raw_dir: string representing screenshot saving directory
-    
-    :crop_dir: string representing cropped screenshot saving directory
     """
-    screen_mem = sum(os.path.getsize(raw_dir) for f in os.listdir('.')\
-                         if os.path.isfile(raw_dir))
-    crop_mem = sum(os.path.getsize(crop_dir) for f in os.listdir('.')\
-                     if os.path.isfile(crop_dir))
     
     print('\nScraper Closed!\n\nFinal Output:\n\n\tSites Scraped:\t',i,
-          '\n\tImages Found:\t',j,'\n\n\tScreenshot Memory:\t',screen_mem//(1024**2),'MiB',
-          '\n\n\tCropped Memory:\t',crop_mem//(1024**2),'MiB')
+          '\n\tImages Found:\t',j)
 
 #Run until keyboard interrupt
 
@@ -100,7 +90,7 @@ def scrape_images(driver = webdriver.Chrome(),
             word_list.remove(rand_word)
             search.send_keys(rand_word)
             search.send_keys(Keys.RETURN)
-            sleep(3)
+            sleep(5)
 
             #Find and click a random search result
             results = driver.find_elements_by_tag_name('h3')
@@ -111,31 +101,44 @@ def scrape_images(driver = webdriver.Chrome(),
             elements = []
             for tag in tag_list:
                 elements.append([(elem,tag) for elem in driver.find_elements_by_tag_name(tag)])
-
+            
             #Flatten our list and return attributes
-            elements = [(elem.location,name) for sublist in elements\
+            elements = [({'x':elem.location['x']+elem.size['width']//2,
+                          'y':elem.location['y']+elem.size['height']//2},
+                         name) for sublist in elements\
                         for elem,name in sublist]
 
             #Select only elements visible in screenshot
+            #Set bounds
             bounds = {'x':(crop_size[0]//2,window_size['width'] - crop_size[0]//2),
                       'y':(crop_size[1]//2,window_size['height'] - crop_size[1]//2)}
-            
+
+            #Select only unique locations
+            names = elements
+
+            elements = [tuple(elem.items()) for elem,name in elements]
+    
+            elements = [dict(elem) for elem in set(elements)]
+
+            #Reunit with original name
+            elements = [(elem,names[[name[0] for name in names].index(elem)][1])\
+                        for elem in elements]
+
+            #Select only locations in bounds
             elements = [(element,name) for element,name in elements \
-                        if ((element['x'] > bounds['x'][0])|\
+                        if ((element['x'] > bounds['x'][0])&\
                             (element['x'] < bounds['x'][1])) &\
-                        ((element ['y'] > bounds['y'][0])|\
+                        ((element ['y'] > bounds['y'][0])&\
                          (element ['y'] < bounds['y'][1]))]
-           
-            #Remove duplicates from elements list
-            elements = list(set(elements))
 
             #Save screenshot of browser
             driver.save_screenshot(raw_dir+'/scraped_'+str(i).zfill(6)+'.png')
             print('Screenshot From:\t'+driver.current_url+'\n\tSaved At:\t'+raw_dir+'/scraped_'\
                   +str(i).zfill(6)+'.png\n')
-            
+
             #Iterate over our element locations and crop images 
             for element,name in elements:
+                print(element)
                 img = Image.open('scraped/raw/scraped_'+str(i).zfill(6)+'.png')
                 
                 crop = img.crop((element['x']-crop_size[0]//2,
@@ -158,10 +161,10 @@ def scrape_images(driver = webdriver.Chrome(),
                       
         except KeyboardInterrupt:
             #Some final output about images saved and their space in memory
-            exitscript(i,j,raw_dir,crop_dir)
+            exitscript(i,j)
             driver.close()
     else:
-        exitscript(i,j,raw_dir,crop_dir)
+        exitscript(i,j)
         driver.close()
 
 scrape_images()
